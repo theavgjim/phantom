@@ -20,6 +20,7 @@ public final class Esp extends ClientModule {
 
     public Esp() {
         super("ESP", "Draws boxes around entities through walls", Category.VISUALS);
+        restricted();
         add(filter.players);
         add(filter.hostile);
         add(filter.passive);

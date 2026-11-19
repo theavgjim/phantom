@@ -5,6 +5,16 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      multiplayer:
+        description: "Run the multiplayer compatibility test (starts local Minecraft servers)"
+        type: boolean
+        default: false
+      accept_eula:
+        description: "I accept the Minecraft EULA (https://aka.ms/MinecraftEULA) for the local test servers"
+        type: boolean
+        default: false
 
 # Releases: push a tag like v1.2.0. The tag becomes the version of both the mod and
 # PhantomClient.exe, and the release gets PhantomClient.exe + SHA256SUMS.txt, which the
@@ -40,6 +50,29 @@ jobs:
         with:
           name: selftest-screenshots
           path: MinecraftIntegration/run-selftest/screenshots/
+
+  multiplayer:
+    name: Multiplayer compatibility (local servers)
+    if: github.event_name == 'workflow_dispatch' && inputs.multiplayer && inputs.accept_eula
+    needs: mod
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: gradle/actions/setup-gradle@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+      - name: compat-test.sh (EULA accepted via the workflow input)
+        run: tools/compat-test.sh --accept-eula
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: multiplayer-report
+          path: |
+            MinecraftIntegration/run-selftest/phantom-selftest.json
+            MinecraftIntegration/run-selftest/screenshots/
+            build/compat/*.log
+            build/compat/*/server.log
 
   launcher:
     name: PhantomClient.exe (WPF)

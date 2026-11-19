@@ -13,6 +13,7 @@ public sealed class ClientStatus
     [JsonPropertyName("profile")] public string Profile { get; set; } = "";
     [JsonPropertyName("context")] public string Context { get; set; } = "";
     [JsonPropertyName("fps")] public int Fps { get; set; }
+    [JsonPropertyName("server")] public string Server { get; set; } = "";
     [JsonPropertyName("timestamp")] public long Timestamp { get; set; }
     [JsonPropertyName("enabledModules")] public List<string> EnabledModules { get; set; } = new();
 
@@ -37,7 +38,7 @@ public sealed class ClientStatus
     public string ContextDisplay => Context switch
     {
         "private-world" => "Private world",
-        "remote-server" => "Multiplayer (training modules locked)",
+        "remote-server" => string.IsNullOrEmpty(Server) ? "Multiplayer" : "Multiplayer: " + Server,
         "menu" => "Main menu",
         _ => Context
     };

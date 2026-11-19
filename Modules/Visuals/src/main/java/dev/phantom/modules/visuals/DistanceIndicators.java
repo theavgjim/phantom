@@ -21,6 +21,7 @@ public final class DistanceIndicators extends ClientModule {
 
     public DistanceIndicators() {
         super("DistanceIndicators", "Shows how far entities are, even off-screen", Category.VISUALS);
+        restricted();
         add(filter.players);
         add(filter.hostile);
         add(filter.passive);

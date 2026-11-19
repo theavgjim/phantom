@@ -12,7 +12,7 @@ public final class BunnyHop extends ClientModule {
 
     public BunnyHop() {
         super("BunnyHop", "Auto-jump while moving (private worlds)", Category.MOVEMENT);
-        privateWorldOnly();
+        restricted();
         on(TickEvent.class, e -> {
             var p = mc.player;
             if (!MovementUtil.isMoving(p) || p.isSneaking() || p.isTouchingWater() || p.getAbilities().flying) return;

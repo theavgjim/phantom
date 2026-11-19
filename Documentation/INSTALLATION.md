@@ -81,7 +81,8 @@ installer, etc.).
 | Launch fails while downloading Fabric | Check your internet connection or firewall for `meta.fabricmc.net` |
 | Phantom profile missing in the Minecraft Launcher | Restart the Minecraft Launcher; the profile is read when it starts |
 | Game crashes on start | Console → **Crash reports**; make sure the profile uses version `fabric-loader-0.16.14-1.21.1` |
-| A module says "Only available in singleplayer / private worlds" | This is intended on multiplayer servers |
+| A module shows LOCKED / PAUSED on a server | Intended: restricted modules need the server's permission. See [MULTIPLAYER.md](MULTIPLAYER.md) |
+| Disconnected from a server | Use **Reconnect to <server>** on the disconnect screen; a version-mismatch hint appears if the server runs another version |
 | Brightness stuck after a crash with Fullbright on | Set Brightness in Video Settings again; Phantom restores it on a normal exit |
 | Launcher error | Console → **Logs folder**, attach `launcher-*.log` when reporting |
 

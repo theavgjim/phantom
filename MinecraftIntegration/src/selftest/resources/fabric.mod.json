@@ -3,7 +3,11 @@
   "id": "phantom-selftest",
   "version": "1.0.0",
   "name": "Phantom Self-Test",
-  "environment": "client",
-  "entrypoints": { "client": ["dev.phantom.selftest.SelfTest"] },
-  "depends": { "phantom": "*" }
+  "description": "Dev-only test harness. Client side drives the scripted test; server side acts like a policy plugin.",
+  "environment": "*",
+  "entrypoints": {
+    "client": ["dev.phantom.selftest.SelfTest"],
+    "main": ["dev.phantom.selftest.SelfTestServer"]
+  },
+  "depends": { "fabricloader": "*" }
 }

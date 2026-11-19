@@ -7,6 +7,8 @@
     "CameraMixin",
     "ClientPlayerEntityMixin",
     "ClientPlayerInteractionManagerMixin",
+    "ConnectScreenMixin",
+    "DisconnectedScreenAccessor",
     "EntityMixin",
     "GameRendererMixin",
     "KeyboardInputMixin",

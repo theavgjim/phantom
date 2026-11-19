@@ -14,7 +14,7 @@ public final class Speed extends ClientModule {
 
     public Speed() {
         super("Speed", "Move faster (private worlds)", Category.MOVEMENT);
-        privateWorldOnly();
+        restricted();
         on(TickEvent.class, e -> {
             var p = mc.player;
             if (!MovementUtil.isMoving(p) || p.isSneaking() || p.isTouchingWater() || p.isInLava() || p.getAbilities().flying) return;

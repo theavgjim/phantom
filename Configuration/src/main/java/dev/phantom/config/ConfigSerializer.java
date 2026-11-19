@@ -25,7 +25,8 @@ public final class ConfigSerializer {
         JsonObject mods = new JsonObject();
         for (Module m : modules.all()) {
             JsonObject o = new JsonObject();
-            if (m.isToggleable()) o.addProperty("enabled", m.isEnabled());
+            // A module paused by a server policy is still saved as wanted on.
+            if (m.isToggleable()) o.addProperty("enabled", m.isEnabled() || m.isSuspended());
             o.addProperty("key", m.getKey());
             JsonObject settings = new JsonObject();
             for (Setting<?> s : m.getSettings()) settings.add(s.getName(), s.toJson());

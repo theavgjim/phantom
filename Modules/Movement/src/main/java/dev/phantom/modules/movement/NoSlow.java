@@ -7,6 +7,6 @@ import dev.phantom.integration.module.ClientModule;
 public final class NoSlow extends ClientModule {
     public NoSlow() {
         super("NoSlow", "No slowdown while using items (private worlds)", Category.MOVEMENT);
-        privateWorldOnly();
+        restricted();
     }
 }

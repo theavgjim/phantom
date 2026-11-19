@@ -25,7 +25,7 @@ public final class Criticals extends ClientModule {
 
     public Criticals() {
         super("Criticals", "Critical-hit demonstration and stats (private worlds)", Category.COMBAT);
-        privateWorldOnly();
+        restricted();
         on(AttackEntityEvent.class, e -> {
             if (!(e.target instanceof LivingEntity)) return;
             hits++;

@@ -20,6 +20,7 @@ import java.util.List;
 /** Lays out and draws HUD elements from their stored (fractional) positions. */
 public final class HudManager {
     private final HudRegistry registry;
+    private final java.util.Set<String> failed = new java.util.HashSet<>();
 
     public HudManager(HudRegistry registry) {
         this.registry = registry;
@@ -33,6 +34,7 @@ public final class HudManager {
         registry.register(new ModuleListElement());
         registry.register(new TargetInfoElement());
         registry.register(new NotificationsElement());
+        registry.register(new dev.phantom.hud.elements.ServerInfoElement());
     }
 
     public List<ScreenElement> elements() {
@@ -61,14 +63,19 @@ public final class HudManager {
             ctx.getMatrices().push();
             ctx.getMatrices().translate(x, y, 0);
             ctx.getMatrices().scale(s, s, 1);
-            if (editor && !e.visible.isOn()) {
-                // Hidden elements are drawn faintly in the editor so they can be re-enabled.
-                e.render(ctx, tickDelta, true, right);
-                ctx.fill(0, 0, (int) Math.ceil(e.width()), (int) Math.ceil(e.height()), Colors.withAlpha(0x000000, 150));
-            } else {
-                e.render(ctx, tickDelta, editor, right);
+            try {
+                if (editor && !e.visible.isOn()) {
+                    // Hidden elements are drawn faintly in the editor so they can be re-enabled.
+                    e.render(ctx, tickDelta, true, right);
+                    ctx.fill(0, 0, (int) Math.ceil(e.width()), (int) Math.ceil(e.height()), Colors.withAlpha(0x000000, 150));
+                } else {
+                    e.render(ctx, tickDelta, editor, right);
+                }
+            } catch (RuntimeException ex) {
+                if (failed.add(e.id())) org.slf4j.LoggerFactory.getLogger("Phantom/HUD").error("HUD element {} failed", e.id(), ex);
+            } finally {
+                ctx.getMatrices().pop();
             }
-            ctx.getMatrices().pop();
         }
     }
 

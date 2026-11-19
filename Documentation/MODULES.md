@@ -1,11 +1,12 @@
 # Modules
 
-**PRIVATE**: runs only in singleplayer or a LAN world you host. It is refused and switched off on remote
-servers. Combat modules target **training dummies (armor stands) and mobs only**, never players.
+**RESTRICTED** modules run freely in singleplayer and LAN worlds you host. On other servers they are
+locked unless the server allows them (see [MULTIPLAYER.md](MULTIPLAYER.md)). Combat modules target
+**training dummies (armor stands) and mobs only**, never players.
 
 ## Combat
 
-| Module | Private | What it does | Key settings |
+| Module | Restricted | What it does | Key settings |
 |---|---|---|---|
 | **KillAura** | yes | Combat testing: attacks dummies/mobs in range, optionally turning the camera to them | Range (1–6 m), Priority (Distance/Health/Angle), Full Cooldown or CPS, Look At Target, Line Of Sight, target types |
 | **AimBot** | yes | Aim training: smooth assist toward targets inside an FOV cone, with an on-target percentage in the module list | Range, FOV, Speed (°/s), Only While Attacking, Training Stats |
@@ -14,6 +15,8 @@ servers. Combat modules target **training dummies (armor stands) and mobs only**
 | **TargetHUD** | no | Enables the Target Info HUD element (face, health bar, distance, armor) | Armor, Distance, Player Head |
 
 ## Visuals
+
+Every Visuals module except ESP Colors and Fullbright is RESTRICTED.
 
 | Module | What it does | Key settings |
 |---|---|---|
@@ -28,7 +31,7 @@ servers. Combat modules target **training dummies (armor stands) and mobs only**
 | **Fullbright** | Raises gamma; restores the old value on disable/exit | Brightness |
 | **Freecam** | Detached camera (client-side only; your body stays put) | Speed (sprint = ×2) |
 
-## Movement (all PRIVATE)
+## Movement (all RESTRICTED)
 
 | Module | What it does | Key settings |
 |---|---|---|
@@ -43,7 +46,7 @@ servers. Combat modules target **training dummies (armor stands) and mobs only**
 | Module | What it does |
 |---|---|
 | **AutoSprint** | Sprints while moving forward (vanilla sprint rules) |
-| **AutoTool** | Picks the fastest hotbar tool while mining, optionally switching back |
+| **AutoTool** | Picks the fastest hotbar tool while mining, optionally switching back (RESTRICTED) |
 
 ## Misc
 
@@ -53,6 +56,7 @@ servers. Combat modules target **training dummies (armor stands) and mobs only**
 | **HUD** | — | HUD on/off, Color Mode (Theme/Static/Rainbow), text colour, background opacity, shadow |
 | **Notifications** | — | Toggle toasts and duration (warnings always show) |
 | **Zoom** | C (hold) | Smooth zoom with optional cinematic camera |
+| **Reconnect** | — | Settings for the Reconnect button: optional Auto Reconnect (off by default, never after kicks/bans) |
 
 ## ClickGUI controls
 
@@ -65,4 +69,5 @@ servers. Combat modules target **training dummies (armor stands) and mobs only**
 | Bind key | Middle-click the card, or the Keybind button. Esc/Delete/Backspace clears it |
 | Reset a slider / colour | Right-click it |
 | Cycle a dropdown | Right-click it |
+| Servers | Sidebar → Servers: connection details, server policy, profile on join, per-server blocks, known servers |
 | HUD editor | Sidebar → HUD Editor: drag (snaps to edges/centre), wheel = scale, right-click = hide, select = settings panel |

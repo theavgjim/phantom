@@ -5,6 +5,7 @@ import dev.phantom.core.setting.BooleanSetting;
 import dev.phantom.core.setting.ModeSetting;
 import dev.phantom.core.setting.NumberSetting;
 import dev.phantom.integration.event.TickEvent;
+import dev.phantom.integration.event.WorldChangeEvent;
 import dev.phantom.integration.module.ClientModule;
 import dev.phantom.integration.util.Rotations;
 import dev.phantom.integration.world.EntityCache;
@@ -31,11 +32,12 @@ public final class KillAura extends ClientModule {
 
     public KillAura() {
         super("KillAura", "Combat testing against dummies and mobs in private worlds", Category.COMBAT);
-        privateWorldOnly();
+        restricted();
         add(targets.dummies);
         add(targets.hostile);
         add(targets.passive);
         on(TickEvent.class, e -> tick());
+        on(WorldChangeEvent.class, e -> target = null);
     }
 
     private BooleanSetting cooldown() {

@@ -3,6 +3,7 @@ package dev.phantom.modules.visuals;
 import dev.phantom.core.module.Category;
 import dev.phantom.core.setting.NumberSetting;
 import dev.phantom.integration.event.TickEvent;
+import dev.phantom.integration.event.WorldChangeEvent;
 import dev.phantom.integration.module.ClientModule;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -20,7 +21,10 @@ public final class Freecam extends ClientModule {
 
     public Freecam() {
         super("Freecam", "Fly the camera freely around the world", Category.VISUALS);
+        restricted();
         on(TickEvent.class, e -> tick());
+        // The free camera position means nothing in a new world or dimension.
+        on(WorldChangeEvent.class, e -> setEnabled(false));
     }
 
     @Override

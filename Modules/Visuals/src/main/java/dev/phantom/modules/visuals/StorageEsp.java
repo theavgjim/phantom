@@ -7,6 +7,7 @@ import dev.phantom.core.setting.ModeSetting;
 import dev.phantom.core.setting.NumberSetting;
 import dev.phantom.integration.event.Render3DEvent;
 import dev.phantom.integration.event.TickEvent;
+import dev.phantom.integration.event.WorldChangeEvent;
 import dev.phantom.integration.module.ClientModule;
 import dev.phantom.integration.util.Colors;
 import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
@@ -49,6 +50,7 @@ public final class StorageEsp extends ClientModule {
 
     public StorageEsp() {
         super("StorageESP", "Highlights chests, barrels, shulkers and more", Category.VISUALS);
+        restricted();
         on(TickEvent.class, e -> {
             if (--timer <= 0) {
                 timer = 20;
@@ -56,6 +58,10 @@ public final class StorageEsp extends ClientModule {
             }
         });
         on(Render3DEvent.class, this::render);
+        on(WorldChangeEvent.class, e -> {
+            targets = List.of();
+            timer = 20;
+        });
     }
 
     @Override

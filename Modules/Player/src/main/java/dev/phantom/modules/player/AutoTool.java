@@ -15,6 +15,7 @@ public final class AutoTool extends ClientModule {
 
     public AutoTool() {
         super("AutoTool", "Selects the best tool while mining", Category.PLAYER);
+        restricted();
         on(TickEvent.class, e -> tick());
     }
 

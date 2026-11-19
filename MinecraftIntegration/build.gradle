@@ -42,7 +42,7 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${loader_version}"
 
     // Only the Fabric API modules we use are nested (jar-in-jar): the user installs nothing else.
-    ['fabric-api-base', 'fabric-lifecycle-events-v1', 'fabric-rendering-v1'].each {
+    ['fabric-api-base', 'fabric-lifecycle-events-v1', 'fabric-rendering-v1', 'fabric-networking-api-v1', 'fabric-screen-api-v1'].each {
         include(modImplementation(fabricApi.module(it, project.fabric_api_version)))
     }
 
@@ -96,6 +96,21 @@ loom {
             runDir = 'run-selftest'
             programArgs '--username', 'PhantomTester', '--width', '1280', '--height', '720'
             vmArgs '-Dphantom.selftest=true', '-Dmixin.debug.verify=true'
+            // Multiplayer stages: tools/compat-test.sh passes the test server addresses via
+            // ORG_GRADLE_PROJECT_selftestServers="-Dphantom.selftest.vanilla=... ..."
+            if (project.hasProperty('selftestServers')) {
+                vmArgs(project.property('selftestServers').toString().split(' ').findAll { it })
+            }
+        }
+        selftestServer {
+            server()
+            configName = 'Phantom Self-Test Server'
+            source sourceSets.selftest
+            runDir = 'run-selftest-server'
+            programArgs 'nogui'
+            if (project.hasProperty('selftestPolicy')) {
+                vmArgs "-Dphantom.selftest.policy=${project.property('selftestPolicy')}"
+            }
         }
     }
 }

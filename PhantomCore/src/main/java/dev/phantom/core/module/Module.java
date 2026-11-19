@@ -30,7 +30,9 @@ public abstract class Module {
     private boolean defaultEnabled;
     private int key = KEY_NONE;
     private int defaultKey = KEY_NONE;
-    private boolean privateWorldOnly;
+    private boolean restricted;
+    /** Non-null while the module is wanted on but paused by the activation guard (e.g. a server policy). */
+    private String suspendedReason;
     private boolean toggleable = true;
     private boolean holdToActivate;
     private boolean hiddenFromList;
@@ -57,9 +59,13 @@ public abstract class Module {
         handlers.add(new Handler<>(type, handler));
     }
 
-    /** Restricts the module to private worlds (singleplayer / own LAN host). */
-    protected final void privateWorldOnly() {
-        this.privateWorldOnly = true;
+    /**
+     * Marks the module as giving a gameplay advantage (reveals hidden information or automates play).
+     * Restricted modules run freely in private worlds (singleplayer / own LAN host); on remote
+     * servers they stay locked unless that server explicitly permits them (see ServerPolicy).
+     */
+    protected final void restricted() {
+        this.restricted = true;
     }
 
     /** Settings-only or action modules (e.g. ClickGUI) that are never "on". */
@@ -125,7 +131,17 @@ public abstract class Module {
      * @return {@code null} on success, otherwise the reason the change was refused.
      */
     public final String setEnabled(boolean value) {
-        if (!toggleable || value == enabled) return null;
+        if (!toggleable) return null;
+        if (!value && suspendedReason != null) {
+            // The user turned a paused module off: forget that it should come back.
+            suspendedReason = null;
+            if (manager != null) {
+                manager.fireToggled(this);
+                manager.fireChanged(this);
+            }
+            return null;
+        }
+        if (value == enabled) return null;
         if (value && manager != null) {
             String reason = manager.guard().deny(this);
             if (reason != null) {
@@ -133,6 +149,7 @@ public abstract class Module {
                 return reason;
             }
         }
+        suspendedReason = null;
         enabled = value;
         if (value) {
             attach();
@@ -148,14 +165,56 @@ public abstract class Module {
         return null;
     }
 
+    /**
+     * Pauses an enabled module because the current context does not permit it. The module stays
+     * "wanted" (saved as enabled) and {@link #resume()} turns it back on when allowed again.
+     */
+    public final void suspend(String reason) {
+        if (!enabled) return;
+        enabled = false;
+        detach();
+        safely(this::onDisable);
+        suspendedReason = reason == null ? "Paused" : reason;
+        if (manager != null) manager.fireToggled(this);
+    }
+
+    /** Re-enables a paused module if the guard now allows it. */
+    public final boolean resume() {
+        if (suspendedReason == null) return false;
+        if (manager != null && manager.guard().deny(this) != null) return false;
+        suspendedReason = null;
+        enabled = true;
+        attach();
+        safely(this::onEnable);
+        if (manager != null) manager.fireToggled(this);
+        return true;
+    }
+
+    public final boolean isSuspended() {
+        return suspendedReason != null;
+    }
+
+    public final String getSuspendedReason() {
+        return suspendedReason;
+    }
+
     public final String toggle() {
         return setEnabled(!enabled);
     }
 
     /** Sets state from a configuration file. Guard refusals are silent here. */
     public final void restoreEnabled(boolean value) {
-        if (!toggleable || value == enabled) return;
-        if (value && manager != null && manager.guard().deny(this) != null) return;
+        if (!toggleable) return;
+        if (!value) suspendedReason = null;
+        if (value == enabled) return;
+        if (value && manager != null) {
+            String reason = manager.guard().deny(this);
+            if (reason != null) {
+                suspendedReason = reason; // wanted on; resumes when allowed
+                manager.fireToggled(this);
+                return;
+            }
+        }
         enabled = value;
         if (value) {
             attach();
@@ -169,7 +228,7 @@ public abstract class Module {
 
     private void attach() {
         if (manager == null) return;
-        for (Handler<?> h : handlers) active.add(h.subscribe(manager.bus()));
+        for (Handler<?> h : handlers) active.add(subscribeSafely(h));
     }
 
     private void detach() {
@@ -224,8 +283,8 @@ public abstract class Module {
         if (manager != null) manager.fireChanged(this);
     }
 
-    public final boolean isPrivateWorldOnly() {
-        return privateWorldOnly;
+    public final boolean isRestricted() {
+        return restricted;
     }
 
     public final boolean isToggleable() {
@@ -245,9 +304,32 @@ public abstract class Module {
         return name;
     }
 
+    private EventBus.Subscription subscribeSafely(Handler<?> h) {
+        return h.subscribe(manager.bus(), this);
+    }
+
+    /** Called when one of this module's handlers threw: report once and switch the module off. */
+    final void handlerFailed(RuntimeException error) {
+        if (!enabled) return;
+        if (manager != null) manager.fireError(this, error);
+        try {
+            setEnabled(false);
+        } catch (RuntimeException ignored) {
+            // onDisable failed too; the module is detached either way
+            enabled = false;
+            detach();
+        }
+    }
+
     private record Handler<T>(Class<T> type, Consumer<? super T> consumer) {
-        EventBus.Subscription subscribe(EventBus bus) {
-            return bus.subscribe(type, consumer);
+        EventBus.Subscription subscribe(EventBus bus, Module owner) {
+            return bus.subscribe(type, event -> {
+                try {
+                    consumer.accept(event);
+                } catch (RuntimeException e) {
+                    owner.handlerFailed(e);
+                }
+            });
         }
     }
 }

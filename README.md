@@ -6,11 +6,12 @@ profiles and 26 modules across Combat, Visuals, Movement, Player and Misc.
 
 ![ClickGUI](Documentation/images/05-clickgui-visuals.jpg)
 
-> **Fair-play by design.** Combat-training modules (KillAura, AimBot, Criticals) and
-> movement-testing modules (Fly, Speed, BunnyHop, Spider, NoSlow) only run in a **private
-> world**: singleplayer, or a LAN world you host. When you join a remote server they are switched
-> off and cannot be enabled. KillAura and AimBot never target players. Phantom has no anti-cheat
-> evasion or stealth features, and nothing it does is hidden from servers.
+> **Multiplayer, on the server's terms.** Phantom joins any 1.21.1 server with the plain vanilla
+> protocol. On servers, only cosmetic modules (HUD, Zoom, Fullbright, ...) run by default; modules that
+> reveal hidden information or automate play (ESP, Freecam, KillAura, Fly, ...) stay locked unless that
+> server explicitly allows them through the `phantom:policy` channel. KillAura and AimBot never target
+> players. Phantom has no anti-cheat evasion or stealth features and never interferes with server
+> security. See [Documentation/MULTIPLAYER.md](Documentation/MULTIPLAYER.md).
 
 ## Highlights
 
@@ -78,6 +79,7 @@ Documentation/          guides (installation, architecture, modules, configurati
 ## Documentation
 
 - [Installation guide](Documentation/INSTALLATION.md)
+- [Multiplayer compatibility](Documentation/MULTIPLAYER.md)
 - [Version compatibility](Documentation/VERSION_COMPATIBILITY.md)
 - [Architecture](Documentation/ARCHITECTURE.md)
 - [Modules](Documentation/MODULES.md)

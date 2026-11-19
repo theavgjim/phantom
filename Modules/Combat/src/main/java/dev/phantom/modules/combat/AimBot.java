@@ -5,6 +5,7 @@ import dev.phantom.core.setting.BooleanSetting;
 import dev.phantom.core.setting.NumberSetting;
 import dev.phantom.integration.event.Render3DEvent;
 import dev.phantom.integration.event.TickEvent;
+import dev.phantom.integration.event.WorldChangeEvent;
 import dev.phantom.integration.module.ClientModule;
 import dev.phantom.integration.util.Rotations;
 import net.minecraft.entity.LivingEntity;
@@ -29,12 +30,13 @@ public final class AimBot extends ClientModule {
 
     public AimBot() {
         super("AimBot", "Aim training assist toward dummies and mobs in private worlds", Category.COMBAT);
-        privateWorldOnly();
+        restricted();
         add(targets.dummies);
         add(targets.hostile);
         add(targets.passive);
         on(TickEvent.class, e -> tick());
         on(Render3DEvent.class, this::frame);
+        on(WorldChangeEvent.class, e -> target = null);
     }
 
     @Override

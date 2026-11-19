@@ -17,6 +17,7 @@ public final class Tracers extends ClientModule {
 
     public Tracers() {
         super("Tracers", "Draws lines from the crosshair to entities", Category.VISUALS);
+        restricted();
         add(filter.players);
         add(filter.hostile);
         add(filter.passive);

@@ -13,6 +13,7 @@ public final class Highlight extends ClientModule {
 
     public Highlight() {
         super("Highlight", "Glowing outlines around entities", Category.VISUALS);
+        restricted();
         add(filter.players);
         add(filter.hostile);
         add(filter.passive);

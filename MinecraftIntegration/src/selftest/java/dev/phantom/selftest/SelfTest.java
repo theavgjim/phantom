@@ -12,7 +12,13 @@ import dev.phantom.integration.PhantomClient;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.DisconnectedScreen;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
+import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.client.network.ServerAddress;
+import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.util.ScreenshotRecorder;
 import net.minecraft.entity.LivingEntity;
@@ -249,12 +255,218 @@ public final class SelfTest implements ClientModInitializer {
                 boolean kept = modules().get("StorageESP").isEnabled();
                 cfg.switchProfile("default");
                 check("profile switch", kept, "copied profile keeps module state");
-                check("no module errors", moduleErrors.isEmpty(), moduleErrors.toString());
-                finish(mc);
+                check("no module errors (singleplayer)", moduleErrors.isEmpty(), moduleErrors.toString());
+                if (VANILLA == null) {
+                    finish(mc);
+                } else {
+                    leaveWorld(mc);
+                    stage = 20;
+                    wait = 20;
+                }
+            }
+            // ============================== multiplayer ==============================
+            case 20 -> {
+                if (!waitFor(mc.world == null && mc.getServer() == null && mc.currentScreen instanceof TitleScreen, 600, "leave singleplayer")) return;
+                connect(mc, VANILLA);
+                stage = 21;
+            }
+            case 21 -> {
+                if (!waitFor(inWorld(mc), 1200, "join vanilla server")) return;
+                stage = 22;
+                wait = 60;
+            }
+            case 22 -> {
+                var session = PhantomClient.get().session();
+                check("mp: vanilla server detected", session.isRemote() && "vanilla".equals(session.brand())
+                                && PhantomClient.get().guard().context().name().equals("REMOTE_SERVER"),
+                        "address=" + session.address() + " brand=" + session.brand() + " protocol=" + session.serverProtocol());
+                Module storage = modules().get("StorageESP");
+                check("mp: restricted module paused on join", storage.isSuspended() && !storage.isEnabled(),
+                        "StorageESP: " + storage.getSuspendedReason());
+                check("mp: restricted module refused", modules().get("ESP").setEnabled(true) != null, "ESP refused under default rules");
+                Module zoom = modules().get("Zoom");
+                zoom.setEnabled(true);
+                boolean zoomOk = zoom.isEnabled();
+                zoom.setEnabled(false);
+                check("mp: cosmetic modules allowed", zoomOk && modules().get("Fullbright").isEnabled() && modules().get("HUD").isEnabled(),
+                        "Zoom, Fullbright, HUD usable");
+                shot(mc, "10-mp-vanilla-hud");
+                ClickGuiScreen gui = new ClickGuiScreen();
+                mc.setScreen(gui);
+                setField(gui, "category", Category.VISUALS);
+                stage = 23;
+                wait = 40;
+            }
+            case 23 -> {
+                shot(mc, "11-mp-vanilla-clickgui");
+                setField(mc.currentScreen, "section", enumValue(mc.currentScreen, "SERVERS"));
+                stage = 24;
+                wait = 30;
+            }
+            case 24 -> {
+                shot(mc, "12-mp-servers-panel");
+                mc.setScreen(null);
+                stableSince = System.currentTimeMillis();
+                stage = 25;
+                wait = 200; // stay connected for 10 s
+            }
+            case 25 -> {
+                check("mp: stable session (10 s, no disconnect)", inWorld(mc) && moduleErrors.isEmpty(),
+                        "connected " + (System.currentTimeMillis() - stableSince) / 1000 + " s, Phantom cost " +
+                                String.format(java.util.Locale.ROOT, "%.2f ms/frame", PhantomClient.get().perf().frameCost()));
+                // Kick through the server console to exercise the Reconnect button.
+                Files.writeString(Path.of(CONSOLE), "kick PhantomTester Phantom reconnect test\n",
+                        java.nio.file.StandardOpenOption.APPEND);
+                stage = 26;
+            }
+            case 26 -> {
+                if (!waitFor(mc.currentScreen instanceof DisconnectedScreen, 400, "kick -> disconnect screen")) return;
+                ButtonWidget reconnect = findButton(mc.currentScreen, "Reconnect to");
+                check("mp: reconnect button on disconnect screen", reconnect != null, reconnect == null ? "missing" : reconnect.getMessage().getString());
+                if (reconnect != null) reconnect.onPress();
+                stage = 27;
+            }
+            case 27 -> {
+                if (!waitFor(inWorld(mc), 1200, "reconnect")) return;
+                var p = PhantomClient.get().session().profile();
+                check("mp: reconnect rejoins server", p != null && p.joins >= 2, "joins=" + (p == null ? 0 : p.joins));
+                leaveWorld(mc);
+                stage = 28;
+            }
+            case 28 -> {
+                if (!waitFor(mc.world == null && mc.currentScreen instanceof TitleScreen, 400, "leave vanilla server")) return;
+                connect(mc, POLICY);
+                stage = 29;
+            }
+            case 29 -> {
+                if (!waitFor(inWorld(mc) && !PhantomClient.get().session().policy().isDefault(), 1200, "join policy server + receive policy")) return;
+                stage = 30;
+                wait = 40;
+            }
+            case 30 -> {
+                var session = PhantomClient.get().session();
+                var policy = session.policy();
+                check("mp: malformed/oversized payloads ignored, valid policy applied", inWorld(mc) && policy.allows("ESP") && policy.denies("Zoom"),
+                        "allow=" + policy.allow() + " deny=" + policy.deny());
+                check("mp: server-granted module allowed", modules().get("ESP").setEnabled(true) == null && modules().get("ESP").isEnabled(), "ESP on");
+                check("mp: server-denied cosmetic refused", modules().get("Zoom").setEnabled(true) != null, "Zoom refused");
+                check("mp: not-granted module still locked", modules().get("KillAura").setEnabled(true) != null
+                        && modules().get("StorageESP").isSuspended(), "KillAura refused, StorageESP paused");
+                session.store().setBlocked(session.address(), "ESP", true);
+                stage = 31;
+                wait = 5;
+            }
+            case 31 -> {
+                Module esp = modules().get("ESP");
+                boolean blocked = esp.isSuspended() && "Blocked in your profile for this server".equals(esp.getSuspendedReason());
+                var session = PhantomClient.get().session();
+                session.store().setBlocked(session.address(), "ESP", false);
+                check("mp: user per-server block pauses a granted module", blocked, String.valueOf(esp.getSuspendedReason()));
+                stage = 32;
+                wait = 20;
+            }
+            case 32 -> {
+                check("mp: unblock resumes it", modules().get("ESP").isEnabled(), "ESP resumed");
+                shot(mc, "13-mp-policy-server");
+                // Server switch: back to the vanilla server. The grant must not carry over.
+                leaveWorld(mc);
+                stage = 33;
+            }
+            case 33 -> {
+                if (!waitFor(mc.world == null && mc.currentScreen instanceof TitleScreen, 400, "leave policy server")) return;
+                connect(mc, VANILLA);
+                stage = 34;
+            }
+            case 34 -> {
+                if (!waitFor(inWorld(mc), 1200, "rejoin vanilla server")) return;
+                stage = 35;
+                wait = 20;
+            }
+            case 35 -> {
+                var session = PhantomClient.get().session();
+                check("mp: server switch resets policy", session.policy().isDefault() && modules().get("ESP").isSuspended(),
+                        "ESP " + modules().get("ESP").getSuspendedReason());
+                leaveWorld(mc);
+                stage = 36;
+            }
+            case 36 -> {
+                if (!waitFor(mc.world == null && mc.currentScreen instanceof TitleScreen, 400, "leave vanilla server (2)")) return;
+                check("mp: paused modules resume after leaving", modules().get("ESP").isEnabled() && modules().get("StorageESP").isEnabled()
+                        && !modules().get("ESP").isSuspended(), "ESP and StorageESP back on in the menu");
+                if (OLD == null) {
+                    finishMultiplayer(mc);
+                    return;
+                }
+                connect(mc, OLD);
+                stage = 37;
+            }
+            case 37 -> {
+                if (!waitFor(mc.currentScreen instanceof DisconnectedScreen, 600, "old-version server rejects client")) return;
+                String text = screenText(mc.currentScreen);
+                check("mp: different-version server handled", text.contains("different Minecraft version") || text.contains("Phantom supports"),
+                        text.length() > 160 ? text.substring(0, 160) : text);
+                shot(mc, "14-mp-version-mismatch");
+                finishMultiplayer(mc);
             }
             default -> {
             }
         }
+    }
+
+    private static final String VANILLA = System.getProperty("phantom.selftest.vanilla");
+    private static final String POLICY = System.getProperty("phantom.selftest.policyServer");
+    private static final String OLD = System.getProperty("phantom.selftest.oldServer");
+    private static final String CONSOLE = System.getProperty("phantom.selftest.consoleFile");
+    private long stableSince;
+    private int waited;
+
+    /** Waits for a condition; on timeout records a failure and jumps to the report. */
+    private boolean waitFor(boolean condition, int timeoutTicks, String what) {
+        if (condition) {
+            waited = 0;
+            return true;
+        }
+        if (++waited > timeoutTicks) {
+            waited = 0;
+            MinecraftClient mc = MinecraftClient.getInstance();
+            check("wait: " + what, false, "timed out after " + timeoutTicks / 20 + " s (screen="
+                    + (mc.currentScreen == null ? "none" : mc.currentScreen.getClass().getSimpleName()) + ")");
+            finishMultiplayer(mc);
+        }
+        return false;
+    }
+
+    private static boolean inWorld(MinecraftClient mc) {
+        return mc.player != null && mc.world != null && mc.getNetworkHandler() != null && mc.currentScreen == null;
+    }
+
+    private static void connect(MinecraftClient mc, String address) {
+        ConnectScreen.connect(new TitleScreen(), mc, ServerAddress.parse(address),
+                new ServerInfo("Phantom test " + address, address, ServerInfo.ServerType.OTHER), false, null);
+    }
+
+    private static void leaveWorld(MinecraftClient mc) {
+        if (mc.world != null) mc.world.disconnect();
+        mc.disconnect(new TitleScreen());
+    }
+
+    private static ButtonWidget findButton(Screen screen, String prefix) {
+        for (var e : screen.children()) {
+            if (e instanceof ButtonWidget b && b.getMessage().getString().startsWith(prefix)) return b;
+        }
+        return null;
+    }
+
+    private static String screenText(Screen screen) {
+        StringBuilder sb = new StringBuilder();
+        for (var e : screen.children()) if (e instanceof ClickableWidget w) sb.append(w.getMessage().getString()).append(" | ");
+        return sb.toString();
+    }
+
+    private void finishMultiplayer(MinecraftClient mc) {
+        if (stage == 99) return;
+        check("no module errors (whole run)", moduleErrors.isEmpty(), moduleErrors.toString());
+        finish(mc);
     }
 
     private ZombieEntity nearestZombie(MinecraftClient mc) {

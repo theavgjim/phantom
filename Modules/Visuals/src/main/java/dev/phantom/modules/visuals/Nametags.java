@@ -27,6 +27,7 @@ public final class Nametags extends ClientModule {
 
     public Nametags() {
         super("Nametags", "Readable nametags with health and distance", Category.VISUALS);
+        restricted();
         add(filter.players);
         add(filter.hostile);
         add(filter.passive);

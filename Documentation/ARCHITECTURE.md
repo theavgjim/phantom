@@ -21,7 +21,7 @@
 │   hooks: Fabric ClientTick / WorldRender.LAST / HudRender / ClientStopping          │
 │   mixins: Keyboard, KeyboardInput, Camera, Entity, MinecraftClient, GameRenderer,   │
 │           ClientPlayerEntity, ClientPlayerInteractionManager, SimpleOption accessor │
-│   PrivateWorldGuard · KeyHandler · EntityCache · TargetTracker · Render3D/2D        │
+│   PolicyGuard · ServerSession · ReconnectHandler · KeyHandler · EntityCache · TargetTracker · Render3D/2D        │
 │ Modules/ (Combat, Visuals, Movement, Player, Misc)   GUI/ (ClickGUI, HUD editor)     │
 │ HUD/ (HudManager + elements)                                                        │
 │ PhantomCore + Configuration (no Minecraft dependency, unit-tested):                 │
@@ -39,8 +39,10 @@
    injections. There are no bytecode tricks, no hidden processes and no network or packet manipulation.
 3. **Mixins stay thin.** Each mixin calls one static method in `Hooks`, which is a single
    "is the module enabled?" check, so the cost is negligible when features are off.
-4. **Private-world policy is enforced centrally** (`PrivateWorldGuard`, an `ActivationGuard` on the
-   `ModuleManager`). It is checked when enabling, when loading profiles, and every tick before modules run.
+4. **Server policy is enforced centrally** (`PolicyGuard` → `PolicyEvaluator`, an `ActivationGuard` on the
+   `ModuleManager`, fed by `ServerSession` and the optional `phantom:policy` channel). It is checked when
+   enabling, when loading profiles, and every tick; disallowed modules are paused and resumed automatically.
+   See [MULTIPLAYER.md](MULTIPLAYER.md).
 5. **The launcher never edits a running client's files.** It requests a profile through `launcher.json`,
    which the client consumes once at startup.
 

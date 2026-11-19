@@ -7,6 +7,7 @@ import dev.phantom.core.setting.Setting;
 import dev.phantom.core.setting.StringListSetting;
 import dev.phantom.integration.event.Render3DEvent;
 import dev.phantom.integration.event.TickEvent;
+import dev.phantom.integration.event.WorldChangeEvent;
 import dev.phantom.integration.module.ClientModule;
 import dev.phantom.integration.util.Colors;
 import net.minecraft.block.Block;
@@ -46,8 +47,14 @@ public final class BlockEsp extends ClientModule {
 
     public BlockEsp() {
         super("BlockESP", "Highlights specific blocks such as ores", Category.VISUALS);
+        restricted();
         on(TickEvent.class, e -> tick());
         on(Render3DEvent.class, this::render);
+        on(WorldChangeEvent.class, e -> {
+            found.clear();
+            queue.clear();
+            total = 0;
+        });
     }
 
     @Override

@@ -37,7 +37,7 @@ final class TestModules {
     static final class Restricted extends Module {
         Restricted() {
             super("Restricted", "Private only", Category.COMBAT);
-            privateWorldOnly();
+            restricted();
         }
     }
 

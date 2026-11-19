@@ -135,20 +135,22 @@ public final class Render3D implements AutoCloseable {
         RenderSystem.depthMask(false);
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 
-        if (quadBuf != null) BufferRenderer.drawWithGlobalProgram(quadBuf);
-        if (lineBuf != null) {
-            RenderSystem.lineWidth(lineWidth);
-            BufferRenderer.drawWithGlobalProgram(lineBuf);
+        try {
+            if (quadBuf != null) BufferRenderer.drawWithGlobalProgram(quadBuf);
+            if (lineBuf != null) {
+                RenderSystem.lineWidth(lineWidth);
+                BufferRenderer.drawWithGlobalProgram(lineBuf);
+            }
+        } finally {
+            // Always hand the GL state back exactly as vanilla expects it.
             RenderSystem.lineWidth(1f);
+            RenderSystem.depthMask(true);
+            RenderSystem.enableCull();
+            RenderSystem.enableDepthTest();
+            RenderSystem.disableBlend();
+            mv.popMatrix();
+            RenderSystem.applyModelViewMatrix();
         }
-
-        RenderSystem.depthMask(true);
-        RenderSystem.enableCull();
-        RenderSystem.enableDepthTest();
-        RenderSystem.disableBlend();
-
-        mv.popMatrix();
-        RenderSystem.applyModelViewMatrix();
     }
 
     @Override

@@ -35,7 +35,7 @@ class ModuleFrameworkTest {
     void guardRefusesPrivateWorldModules() {
         ModuleManager mm = new ModuleManager(new EventBus());
         Module r = mm.register(new TestModules.Restricted());
-        mm.setGuard(m -> m.isPrivateWorldOnly() ? "remote server" : null);
+        mm.setGuard(m -> m.isRestricted() ? "remote server" : null);
         String[] refused = new String[1];
         mm.addListener(new ModuleManager.Listener() {
             @Override

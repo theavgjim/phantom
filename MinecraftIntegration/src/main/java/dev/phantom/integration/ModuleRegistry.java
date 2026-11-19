@@ -9,6 +9,7 @@ import dev.phantom.modules.combat.TargetHud;
 import dev.phantom.modules.misc.ClickGuiModule;
 import dev.phantom.modules.misc.HudModule;
 import dev.phantom.modules.misc.NotificationsModule;
+import dev.phantom.modules.misc.Reconnect;
 import dev.phantom.modules.misc.Zoom;
 import dev.phantom.modules.movement.BunnyHop;
 import dev.phantom.modules.movement.Fly;
@@ -65,5 +66,6 @@ final class ModuleRegistry {
         m.register(new HudModule());
         m.register(new NotificationsModule());
         m.register(new Zoom());
+        m.register(new Reconnect());
     }
 }

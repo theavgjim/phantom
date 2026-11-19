@@ -22,7 +22,7 @@ public final class Fly extends ClientModule {
 
     public Fly() {
         super("Fly", "Fly in creative-style for testing in private worlds", Category.MOVEMENT);
-        privateWorldOnly();
+        restricted();
         on(TickEvent.class, e -> tick());
     }
 

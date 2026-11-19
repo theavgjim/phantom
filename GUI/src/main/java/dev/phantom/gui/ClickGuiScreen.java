@@ -4,7 +4,7 @@ import dev.phantom.core.module.Category;
 import dev.phantom.core.module.Module;
 import dev.phantom.core.theme.Theme;
 import dev.phantom.integration.PhantomClient;
-import dev.phantom.integration.guard.PrivateWorldGuard;
+import dev.phantom.core.policy.PolicyEvaluator;
 import dev.phantom.integration.render.Render2D;
 import dev.phantom.integration.util.Colors;
 import dev.phantom.modules.misc.ClickGuiModule;
@@ -23,7 +23,7 @@ import java.util.Map;
  * keybind editor, theme selector, profile manager and a shortcut to the HUD editor.
  */
 public final class ClickGuiScreen extends Screen {
-    enum Section { MODULES, THEMES, PROFILES }
+    enum Section { MODULES, THEMES, PROFILES, SERVERS }
 
     private static Section lastSection = Section.MODULES;
     private static Category lastCategory = Category.COMBAT;
@@ -34,6 +34,7 @@ public final class ClickGuiScreen extends Screen {
     private final TextInput search = new TextInput(32, "Search modules...");
     private final ThemesPanel themesPanel = new ThemesPanel();
     private final ProfilesPanel profilesPanel = new ProfilesPanel();
+    private final ServersPanel serversPanel = new ServersPanel();
     private final Map<Module, Float> measured = new HashMap<>();
     private Section section = lastSection;
     private Category category = lastCategory;
@@ -137,6 +138,8 @@ public final class ClickGuiScreen extends Screen {
                     (y) -> themesPanel.render(ui, ctx, t, cx, y, cw));
             case PROFILES -> drawScrollable(ctx, t, "Profiles", "Profile: " + client.core().config().activeProfile(),
                     (y) -> profilesPanel.render(ui, ctx, t, cx, y, cw));
+            case SERVERS -> drawScrollable(ctx, t, "Servers", "Multiplayer compatibility and per-server profiles",
+                    (y) -> serversPanel.render(ui, ctx, t, cx, y, cw));
         }
         ui.alpha = baseAlpha;
 
@@ -154,11 +157,12 @@ public final class ClickGuiScreen extends Screen {
         Render2D.text(ctx, "client " + client.core().version(), x, y + 13, ui.c(t.textDim()), false, 0.7f);
 
         y = wy + 48;
-        float itemH = wh < 250 ? 16 : 18, itemW = side - 16;
+        float itemH = wh < 250 ? 15 : 18, itemW = side - 16;
         // Animated selection pill.
         int selIndex = section == Section.MODULES && search.text.isEmpty() ? category.ordinal()
                 : section == Section.THEMES ? Category.values().length + 1
-                : section == Section.PROFILES ? Category.values().length + 2 : -1;
+                : section == Section.PROFILES ? Category.values().length + 2
+                : section == Section.SERVERS ? Category.values().length + 3 : -1;
         if (selIndex >= 0) {
             float slotY = y + selIndex * (itemH + 2) + (selIndex > Category.values().length - 1 ? 8 : 0);
             float sy = ui.anim("sideSel", slotY, 18);
@@ -192,8 +196,14 @@ public final class ClickGuiScreen extends Screen {
             profilesPanel.refresh();
         });
 
+        y += itemH + 2;
+        sideItem(ctx, t, "servers", "\u2601", "Servers", "", x, y, itemW, itemH, section == Section.SERVERS, () -> {
+            section = Section.SERVERS;
+            scrollTarget = 0;
+        });
+
         // Context status under the logo.
-        PrivateWorldGuard.Context ctxState = client.guard().context();
+        PolicyEvaluator.Context ctxState = client.guard().context();
         String status;
         int color;
         switch (ctxState) {
@@ -202,7 +212,8 @@ public final class ClickGuiScreen extends Screen {
                 color = 0xFF66BB6A;
             }
             case REMOTE_SERVER -> {
-                status = "Server: training locked";
+                int locked = client.guard().locked(client.core().modules()).size();
+                status = client.session().name() + (locked > 0 ? " \u00B7 " + locked + " locked" : "");
                 color = 0xFFFFA726;
             }
             default -> {
@@ -222,12 +233,13 @@ public final class ClickGuiScreen extends Screen {
         float hv = ui.anim("side:" + id, hover && !selected ? 1 : 0, 18);
         if (hv > 0.01f) Render2D.roundedRect(ctx, x - 2, y, w, h, 4, ui.c(Colors.withAlpha(t.panelRaised(), (int) (160 * hv))));
         int tc = selected ? t.text() : Colors.lerp(t.textDim(), t.text(), hv);
-        Render2D.text(ctx, icon, x + 5, y + 5, ui.c(selected ? t.accent() : tc), false);
-        Render2D.text(ctx, label, x + 18 + hv * 1.5f, y + 5, ui.c(tc), false);
+        float ty = y + (h - 8) / 2f;
+        Render2D.text(ctx, icon, x + 5, ty, ui.c(selected ? t.accent() : tc), false);
+        Render2D.text(ctx, label, x + 18 + hv * 1.5f, ty, ui.c(tc), false);
         if (!badge.isEmpty()) {
             float bw = Render2D.width(badge) + 6;
             Render2D.roundedRect(ctx, x + w - bw - 6, y + 4, bw, 10, 5, ui.c(Colors.withAlpha(t.accent(), 90)));
-            Render2D.centeredText(ctx, badge, x + w - bw / 2 - 6, y + 5, ui.c(t.text()), false);
+            Render2D.centeredText(ctx, badge, x + w - bw / 2 - 6, ty, ui.c(t.text()), false);
         }
         ui.hit(x - 2, y, w, h, (mx, my, b) -> {
             if (b == 0) action.run();
@@ -296,11 +308,15 @@ public final class ClickGuiScreen extends Screen {
         int nameColor = Colors.lerp(t.text(), Colors.brighten(t.accent(), 0.35f), on);
         Render2D.text(ctx, m.getName(), nx, y + (settings.descriptions.isOn() ? 6 : 11), ui.c(nameColor), false);
         float badgeX = nx + Render2D.width(m.getName()) + 5;
-        if (m.isPrivateWorldOnly()) {
-            String sp = "PRIVATE";
+        String lockReason = m.isToggleable() ? client.guard().deny(m) : null;
+        if (lockReason != null || m.isRestricted()) {
+            // LOCKED: not allowed here right now. RESTRICTED: allowed here, but gated on servers.
+            boolean locked = lockReason != null;
+            String sp = locked ? (m.isSuspended() ? "PAUSED" : "LOCKED") : "RESTRICTED";
+            int bc = locked ? 0xFFEF5350 : 0xFFFFA726;
             float bw = Render2D.width(sp) * 0.65f + 6;
-            Render2D.roundedRect(ctx, badgeX, y + (settings.descriptions.isOn() ? 6 : 11), bw, 8, 3, ui.c(Colors.withAlpha(0xFFFFA726, 50)));
-            Render2D.text(ctx, sp, badgeX + 3, y + (settings.descriptions.isOn() ? 7.5f : 12.5f), ui.c(0xFFFFB74D), false, 0.65f);
+            Render2D.roundedRect(ctx, badgeX, y + (settings.descriptions.isOn() ? 6 : 11), bw, 8, 3, ui.c(Colors.withAlpha(bc, 50)));
+            Render2D.text(ctx, sp, badgeX + 3, y + (settings.descriptions.isOn() ? 7.5f : 12.5f), ui.c(Colors.brighten(bc, 0.2f)), false, 0.65f);
         }
         float rightW = 70;
         if (settings.descriptions.isOn()) {
@@ -337,8 +353,16 @@ public final class ClickGuiScreen extends Screen {
         float start = y;
         Render2D.rect(ctx, x, y, w, 1, ui.c(t.outline()));
         y += 5;
-        if (m.isPrivateWorldOnly()) {
-            Render2D.text(ctx, "Runs only in singleplayer or your own LAN world.", x, y, ui.c(0xFFFFB74D), false, 0.8f);
+        String reason = m.isToggleable() ? client.guard().deny(m) : null;
+        if (reason != null) {
+            String hint = reason.equals(PolicyEvaluator.BLOCKED_BY_USER) ? "  (Servers page)"
+                    : reason.equals(PolicyEvaluator.NOT_PERMITTED) ? "  - server owners can allow it via phantom:policy" : "";
+            Render2D.text(ctx, Render2D.trim(reason + hint, (int) (w / 0.8f)), x, y, ui.c(0xFFEF9A9A), false, 0.8f);
+            y += 11;
+        } else if (m.isRestricted()) {
+            String where = client.guard().context() == PolicyEvaluator.Context.REMOTE_SERVER ? "Allowed by this server's policy."
+                    : "Allowed in private worlds. On servers it needs the server's permission.";
+            Render2D.text(ctx, where, x, y, ui.c(0xFFFFB74D), false, 0.8f);
             y += 11;
         }
         // Keybind editor row.

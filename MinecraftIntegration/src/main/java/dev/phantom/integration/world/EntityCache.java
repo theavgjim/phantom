@@ -26,6 +26,8 @@ public final class EntityCache {
     }
 
     private static final double MAX_RANGE_SQ = 256 * 256;
+    /** Busy multiplayer hubs can hold thousands of entities; only the nearest are kept. */
+    private static final int MAX_ENTRIES = 1500;
     private final MinecraftClient mc;
     private final List<Entry> entries = new ArrayList<>();
     private long tick;
@@ -60,6 +62,7 @@ public final class EntityCache {
             entries.add(new Entry(e, kindOf(e), d));
         }
         entries.sort((a, b) -> Double.compare(a.distanceSq, b.distanceSq));
+        if (entries.size() > MAX_ENTRIES) entries.subList(MAX_ENTRIES, entries.size()).clear();
     }
 
     /** Nearest living entity matching the filter within {@code range} blocks. */

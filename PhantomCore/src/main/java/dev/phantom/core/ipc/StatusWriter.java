@@ -35,6 +35,7 @@ public final class StatusWriter {
         o.addProperty("profile", status.profile());
         o.addProperty("context", status.context());
         o.addProperty("fps", status.fps());
+        o.addProperty("server", status.server());
         o.addProperty("timestamp", System.currentTimeMillis());
         JsonArray mods = new JsonArray();
         for (String m : status.enabledModules()) mods.add(m);
@@ -58,6 +59,6 @@ public final class StatusWriter {
     }
 
     public record Status(boolean running, String clientVersion, String minecraftVersion, String profile,
-                         String context, int fps, List<String> enabledModules) {
+                         String context, int fps, List<String> enabledModules, String server) {
     }
 }

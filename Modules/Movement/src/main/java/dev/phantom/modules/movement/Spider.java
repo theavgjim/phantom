@@ -12,7 +12,7 @@ public final class Spider extends ClientModule {
 
     public Spider() {
         super("Spider", "Climb walls (private worlds)", Category.MOVEMENT);
-        privateWorldOnly();
+        restricted();
         on(TickEvent.class, e -> {
             var p = mc.player;
             if (!p.horizontalCollision || !MovementUtil.isMoving(p)) return;
