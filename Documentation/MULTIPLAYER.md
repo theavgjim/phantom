@@ -63,6 +63,32 @@ launcher (`status.json` → "Multiplayer: host (brand)"). Each server you join g
 - **Performance:** the shared entity scan is capped to the nearest 1,500 entities on crowded servers.
   Phantom's own cost per frame is measured and can be shown on the Server Info element ("Phantom Cost").
 
+## Diagnostics: when a server restricts a feature
+
+- Toggling a locked module shows a toast with the exact reason: **Not permitted on this server**,
+  **Disabled by this server** or **Blocked in your profile for this server**.
+- Module cards show **LOCKED** (not allowed here), **PAUSED** (you had it on; it resumes when allowed)
+  or **RESTRICTED** (allowed here, but gated on servers). The expanded card repeats the reason.
+- On join you get a toast with how many modules are locked, and the log (also in the launcher console)
+  records `Server <address> (<brand>), policy: default|phantom:policy, locked: ...`.
+- **ClickGUI → Servers → Copy diagnostics** puts a full report on the clipboard: versions, protocol,
+  server software, ping, policy, your blocks, enabled / paused / locked modules with reasons, and Phantom's
+  per-frame cost.
+
+## Network traffic and false positives
+
+- **Traffic:** Phantom sends nothing of its own. The only extra bytes are Fabric's standard
+  `minecraft:register` channel list, which includes `phantom:policy`. Launcher communication is a
+  local file (`status.json`), never the network.
+- **Cosmetic modules are purely local:** HUD, ClickGUI, Zoom, Fullbright, Reach, TargetHUD and
+  notifications only change rendering. The server receives exactly what a vanilla client sends.
+- **AutoSprint** uses vanilla's exact sprint conditions (forward input, food > 6 or flight, not sneaking,
+  using an item, riding, gliding, blind or blocked), so its sprint state is one an unmodified client could send.
+- **Freecam** never moves the player: input is frozen and no position changes are sent.
+- **Restricted modules** that a server grants (e.g. Fly, Speed, KillAura) are still subject to that
+  server's own movement and combat checks; Phantom does not try to get around them. Fly in particular
+  also needs `allow-flight=true` on the server.
+
 ## Per-server profiles (`config/phantom/servers.json`)
 
 ```json

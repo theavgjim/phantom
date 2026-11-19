@@ -29,6 +29,11 @@ public final class Fly extends ClientModule {
     @Override
     protected void onEnable() {
         if (inWorld() && mode.is("Abilities")) grant(true);
+        if (inWorld() && !mc.isIntegratedServerRunning()) {
+            // Only reachable when this server's policy allows Fly. The server's own movement rules still apply.
+            client().notifications().push("Fly", "Allowed by this server; it also needs allow-flight on the server",
+                    dev.phantom.integration.util.Notifications.Kind.INFO);
+        }
     }
 
     @Override

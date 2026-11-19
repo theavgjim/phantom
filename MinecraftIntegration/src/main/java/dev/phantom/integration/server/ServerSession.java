@@ -121,6 +121,7 @@ public final class ServerSession {
             store.recordPolicy(address, policy);
             store.save();
             LOG.info("Server policy from {}: allow={} deny={}", address, policy.allow(), policy.deny());
+            LOG.info(Diagnostics.summary(dev.phantom.integration.PhantomClient.get()));
             String msg = policy.message().isBlank() ? "" : " - " + policy.message();
             notifier.accept("Server policy received" + msg);
         } catch (RuntimeException e) {

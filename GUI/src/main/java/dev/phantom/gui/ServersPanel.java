@@ -23,6 +23,7 @@ import java.util.List;
 final class ServersPanel {
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("MMM d, HH:mm").withZone(ZoneId.systemDefault());
     private String confirmForget;
+    private long copied;
 
     float render(Ui ui, DrawContext ctx, Theme t, float x, float y, float w) {
         PhantomClient client = PhantomClient.get();
@@ -61,7 +62,13 @@ final class ServersPanel {
             Render2D.text(ctx, Render2D.trim(r[1], (int) ((w - 80) / 0.85f)), x + 70, ry, ui.c(t.text()), false, 0.85f);
             ry += 11;
         }
-        y += cardH + 8;
+        y += cardH + 4;
+        Widgets.button(ui, ctx, t, "srv:diag", x, y, 120, 13, copied > System.currentTimeMillis() ? "Copied!" : "Copy diagnostics", false, () -> {
+            net.minecraft.client.MinecraftClient.getInstance().keyboard.setClipboard(dev.phantom.integration.server.Diagnostics.report(client));
+            copied = System.currentTimeMillis() + 1500;
+        });
+        Render2D.text(ctx, "Paste it into a bug report or a message to the server staff.", x + 126, y + 3.5f, ui.c(t.textDim()), false, 0.75f);
+        y += 21;
 
         if (s.isRemote() && s.profile() != null) {
             ServerProfileStore.Profile prof = s.profile();

@@ -232,6 +232,11 @@ public final class PhantomClient {
             notifications.push("Profile", "Loaded '" + profile.configProfile + "' for " + session.name(), Notifications.Kind.INFO);
         }
         enforce();
+        if (session.isRemote()) {
+            LOG.info(dev.phantom.integration.server.Diagnostics.summary(this));
+            int locked = guard.locked(core.modules()).size();
+            if (locked > 0) notifications.push(session.name(), locked + " restricted modules locked here (ClickGUI > Servers)", Notifications.Kind.INFO);
+        }
     }
 
     /** Policy enforcement; its own pause/resume toasts replace the per-module toggle toasts. */
