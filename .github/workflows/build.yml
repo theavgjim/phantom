@@ -1,0 +1,71 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  mod:
+    name: Fabric mod (Java 21)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build and unit-test
+        run: ./gradlew build
+      - name: In-game self-test (xvfb, software GL)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew :MinecraftIntegration:runSelftest
+          python3 -c "import json,sys; r=json.load(open('MinecraftIntegration/run-selftest/phantom-selftest.json')); print(json.dumps(r, indent=2)); sys.exit(1 if r['failed'] else 0)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phantom-client-jar
+          path: MinecraftIntegration/build/libs/phantom-client-*.jar
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selftest-screenshots
+          path: MinecraftIntegration/run-selftest/screenshots/
+
+  launcher:
+    name: PhantomClient.exe (WPF)
+    needs: mod
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: "8.0.x" }
+      - uses: actions/download-artifact@v4
+        with: { name: phantom-client-jar, path: jar }
+      - name: Embed mod
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force PhantomLauncher/src/PhantomLauncher/Payload | Out-Null
+          Copy-Item (Get-ChildItem jar/*.jar | Select-Object -First 1).FullName PhantomLauncher/src/PhantomLauncher/Payload/phantom-client.jar
+      - run: dotnet test PhantomLauncher/tests/PhantomLauncher.Tests -c Release
+      - run: dotnet publish PhantomLauncher/src/PhantomLauncher -c Release -o dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PhantomClient-exe
+          path: dist/PhantomClient.exe
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [mod, launcher]
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out, merge-multiple: true }
+      - run: cd out && sha256sum PhantomClient.exe phantom-client-*.jar > SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/PhantomClient.exe
+            out/phantom-client-*.jar
+            out/SHA256SUMS.txt

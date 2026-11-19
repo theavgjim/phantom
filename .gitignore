@@ -1,0 +1,14 @@
+.gradle/
+build/
+out/
+run/
+*.iml
+.idea/
+bin/
+obj/
+dist/
+**/Payload/*.jar
+run-selftest/
+*.log
+*.user
+.vs/

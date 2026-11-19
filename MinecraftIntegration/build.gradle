@@ -1,0 +1,101 @@
+plugins {
+    id 'fabric-loom'
+}
+
+evaluationDependsOn(':PhantomCore')
+
+base { archivesName = 'phantom-client' }
+
+sourceSets {
+    main {
+        // Feature code lives in its own top-level trees (see Documentation/ARCHITECTURE.md).
+        java.srcDirs += [
+                '../Modules/Combat/src/main/java',
+                '../Modules/Visuals/src/main/java',
+                '../Modules/Movement/src/main/java',
+                '../Modules/Player/src/main/java',
+                '../Modules/Misc/src/main/java',
+                '../GUI/src/main/java',
+                '../HUD/src/main/java',
+        ]
+        resources.srcDirs += ['../Resources/shared']
+    }
+}
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+
+loom {
+    runs {
+        client {
+            client()
+            configName = 'Phantom Client'
+            runDir = 'run'
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings "net.fabricmc:yarn:${yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
+
+    // Only the Fabric API modules we use are nested (jar-in-jar): the user installs nothing else.
+    ['fabric-api-base', 'fabric-lifecycle-events-v1', 'fabric-rendering-v1'].each {
+        include(modImplementation(fabricApi.module(it, project.fabric_api_version)))
+    }
+
+    implementation project(':PhantomCore')
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'minecraft_version', project.minecraft_version
+    inputs.property 'loader_version', project.loader_version
+    filesMatching('fabric.mod.json') {
+        expand version: project.version, minecraft_version: project.minecraft_version, loader_version: project.loader_version
+    }
+}
+
+// PhantomCore has no Minecraft dependency; its classes are shipped inside the mod jar.
+jar {
+    dependsOn ':PhantomCore:jar'
+    from(zipTree(project(':PhantomCore').tasks.jar.archiveFile)) {
+        exclude 'META-INF/MANIFEST.MF'
+    }
+    from(rootProject.file('LICENSE')) { rename { "LICENSE_phantom" } }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+// ---------------------------------------------------------------------------------------------
+// Self-test (development only, never shipped): boots the real client, applies every mixin,
+// creates a flat test world and exercises modules, GUI, HUD and config. Run with:
+//   xvfb-run ./gradlew :MinecraftIntegration:runSelftest
+sourceSets {
+    selftest {
+        compileClasspath += main.compileClasspath + main.output
+        runtimeClasspath += main.runtimeClasspath + main.output
+    }
+}
+
+loom {
+    mods {
+        phantom { sourceSet sourceSets.main }
+        'phantom-selftest' { sourceSet sourceSets.selftest }
+    }
+    runs {
+        selftest {
+            client()
+            configName = 'Phantom Self-Test'
+            source sourceSets.selftest
+            runDir = 'run-selftest'
+            programArgs '--username', 'PhantomTester', '--width', '1280', '--height', '720'
+            vmArgs '-Dphantom.selftest=true', '-Dmixin.debug.verify=true'
+        }
+    }
+}

@@ -1,0 +1,28 @@
+plugins {
+    id 'java-library'
+}
+
+base { archivesName = 'phantom-core' }
+
+sourceSets {
+    main {
+        // The Configuration/ tree is part of the core library (no Minecraft dependency).
+        java.srcDirs += ['../Configuration/src/main/java']
+    }
+}
+
+dependencies {
+    // Provided at runtime by Minecraft itself.
+    compileOnly "com.google.code.gson:gson:${gson_version}"
+    compileOnly "org.slf4j:slf4j-api:${slf4j_version}"
+
+    testImplementation "com.google.code.gson:gson:${gson_version}"
+    testImplementation "org.slf4j:slf4j-api:${slf4j_version}"
+    testImplementation platform("org.junit:junit-bom:${junit_version}")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}

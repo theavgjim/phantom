@@ -1,0 +1,8 @@
+{
+  "clientVersion": "1.0.0",
+  "updateUrl": "https://api.github.com/repos/theavgjim/phantom/releases/latest",
+  "supported": [
+    { "minecraft": "1.21.1", "fabricLoader": "0.16.14", "java": 21, "status": "supported" }
+  ],
+  "planned": ["1.21.4"]
+}

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "phantom-selftest",
+  "version": "1.0.0",
+  "name": "Phantom Self-Test",
+  "environment": "client",
+  "entrypoints": { "client": ["dev.phantom.selftest.SelfTest"] },
+  "depends": { "phantom": "*" }
+}

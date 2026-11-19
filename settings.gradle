@@ -1,0 +1,15 @@
+pluginManagement {
+    repositories {
+        maven { name = 'Fabric'; url = 'https://maven.fabricmc.net/' }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'PhantomClient'
+
+// PhantomCore         : Minecraft-agnostic framework (modules, settings, events, themes, HUD model)
+//                       + Configuration/ (JSON profiles, autosave, backups, import/export)
+// MinecraftIntegration: Fabric client mod (entrypoint, mixins, rendering)
+//                       + Modules/, GUI/, HUD/ source trees
+include 'PhantomCore', 'MinecraftIntegration'

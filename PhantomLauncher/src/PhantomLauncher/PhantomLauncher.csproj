@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <!-- Allows building the Windows app from Linux/macOS CI. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+
+    <AssemblyName>PhantomClient</AssemblyName>
+    <RootNamespace>PhantomLauncher</RootNamespace>
+    <ApplicationIcon>Assets\PhantomClient.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Product>Phantom Client</Product>
+    <Company>theavgjim</Company>
+    <Description>Phantom Client launcher for Minecraft: Java Edition</Description>
+    <Copyright>MIT License</Copyright>
+    <Version>1.0.0</Version>
+
+    <!-- Single self-contained PhantomClient.exe (no .NET install needed). -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <DebugType>embedded</DebugType>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PhantomLauncher.Core\PhantomLauncher.Core.csproj" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\logo.png" />
+    <Resource Include="Assets\PhantomClient.ico" />
+    <!-- Shared with the Java mod: single source of truth for supported versions. -->
+    <EmbeddedResource Include="..\..\..\Resources\shared\phantom\compatibility.json" LogicalName="compatibility.json" />
+    <EmbeddedResource Include="Assets\profile-icon.png" LogicalName="profile-icon.png" />
+    <!-- Built by Gradle and copied here by build scripts. -->
+    <EmbeddedResource Include="Payload\phantom-client.jar" LogicalName="phantom-client.jar" Condition="Exists('Payload\phantom-client.jar')" />
+  </ItemGroup>
+</Project>

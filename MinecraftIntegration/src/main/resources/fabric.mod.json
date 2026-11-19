@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "phantom",
+  "version": "${version}",
+  "name": "Phantom Client",
+  "description": "Modular client with ClickGUI, HUD and JSON profiles. Combat and movement modules are limited to private worlds.",
+  "authors": ["theavgjim"],
+  "contact": { "homepage": "https://github.com/theavgjim/phantom", "sources": "https://github.com/theavgjim/phantom", "issues": "https://github.com/theavgjim/phantom/issues" },
+  "license": "MIT",
+  "icon": "assets/phantom/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.phantom.integration.PhantomClientMod"]
+  },
+  "mixins": ["phantom.mixins.json"],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "${minecraft_version}",
+    "java": ">=21"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.phantom.integration.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "CameraMixin",
+    "ClientPlayerEntityMixin",
+    "ClientPlayerInteractionManagerMixin",
+    "EntityMixin",
+    "GameRendererMixin",
+    "KeyboardInputMixin",
+    "KeyboardMixin",
+    "MinecraftClientMixin",
+    "SimpleOptionAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
