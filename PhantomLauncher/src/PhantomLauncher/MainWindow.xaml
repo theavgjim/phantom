@@ -54,8 +54,15 @@
                                 Visibility="{Binding UpdateAvailable, Converter={StaticResource BoolToVis}}">
                             <StackPanel>
                                 <TextBlock Text="{Binding UpdateText}" TextWrapping="Wrap" FontSize="12" />
-                                <Button Content="Download" Margin="0,6,0,0" Style="{StaticResource Primary}" Padding="8,4"
-                                        Command="{Binding OpenUrlCommand}" CommandParameter="{Binding UpdatePageUrl}" />
+                                <ProgressBar Height="3" Margin="0,6,0,0" Maximum="100" Value="{Binding UpdateProgress}"
+                                             Foreground="{StaticResource Accent}" Background="{StaticResource Outline}" BorderThickness="0"
+                                             Visibility="{Binding IsUpdating, Converter={StaticResource BoolToVis}}" />
+                                <Button Content="{Binding UpdateButtonText}" Margin="0,8,0,0" Style="{StaticResource Primary}" Padding="8,5"
+                                        Command="{Binding InstallUpdateCommand}" />
+                                <TextBlock Margin="0,4,0,0" FontSize="11">
+                                    <Hyperlink Command="{Binding OpenUrlCommand}" CommandParameter="{Binding UpdatePageUrl}"
+                                               Foreground="{StaticResource Dim}">Release notes</Hyperlink>
+                                </TextBlock>
                             </StackPanel>
                         </Border>
                         <TextBlock Style="{StaticResource DimText}" TextWrapping="Wrap" FontSize="11"
@@ -89,8 +96,11 @@
                 </DockPanel>
             </Border>
 
-            <!-- Pages -->
-            <Grid Grid.Row="1" Grid.Column="1" Margin="24,20,24,16">
+            <!-- Pages (fade/slide transition on navigation, see MainWindow.xaml.cs) -->
+            <Grid x:Name="Pages" Grid.Row="1" Grid.Column="1" Margin="24,20,24,16">
+                <Grid.RenderTransform>
+                    <TranslateTransform x:Name="PagesOffset" />
+                </Grid.RenderTransform>
 
                 <!-- HOME -->
                 <Grid Visibility="{Binding Page, Converter={StaticResource PageVis}, ConverterParameter=Home}">
@@ -292,6 +302,7 @@
                                 <TextBlock Text="LAUNCHER" Style="{StaticResource Caps}" />
                                 <CheckBox Content="Close Phantom Client after launching the game" IsChecked="{Binding CloseOnLaunch}" Margin="0,0,0,10" />
                                 <CheckBox Content="Check for updates on startup" IsChecked="{Binding CheckUpdates}" Margin="0,0,0,10" />
+                                <CheckBox Content="Download updates automatically and install them when the launcher closes" IsChecked="{Binding AutoUpdate}" Margin="0,0,0,10" />
                                 <TextBlock Text="Release feed (GitHub releases API URL)" Margin="0,0,0,4" />
                                 <DockPanel>
                                     <Button DockPanel.Dock="Right" Content="Check now" Margin="8,0,0,0" Command="{Binding CheckUpdatesCommand}" />

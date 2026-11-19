@@ -43,6 +43,20 @@ See [Documentation/INSTALLATION.md](Documentation/INSTALLATION.md) for details a
 `build.ps1` builds the mod with Gradle, embeds it in the launcher and publishes a single-file,
 self-contained `PhantomClient.exe`, so end users need no .NET install.
 
+## Releasing an update
+
+Bump nothing by hand. Tag and push:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+GitHub Actions builds the mod and `PhantomClient.exe` with version 1.2.0 taken from the tag, runs all
+tests including the in-game self-test, and publishes a release with `PhantomClient.exe`, the mod jar and
+`SHA256SUMS.txt`. Every installed launcher picks it up on its next start and updates itself
+(see [Updates](Documentation/INSTALLATION.md#updates)).
+
 ## Project layout
 
 ```

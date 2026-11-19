@@ -3,7 +3,12 @@ using System.Text.Json.Nodes;
 
 namespace PhantomLauncher.Core.Services;
 
-public sealed record UpdateInfo(string Version, string Url, string Notes);
+/// <param name="ExeUrl">Download URL of the PhantomClient.exe release asset (null if the release has none).</param>
+/// <param name="ChecksumsUrl">Download URL of SHA256SUMS.txt (required for self-update).</param>
+public sealed record UpdateInfo(string Version, string Url, string Notes, string? ExeUrl = null, string? ChecksumsUrl = null)
+{
+    public bool CanSelfUpdate => ExeUrl is not null && ChecksumsUrl is not null;
+}
 
 /// <summary>Queries a GitHub-releases-compatible endpoint ("tag_name", "html_url", "body").</summary>
 public sealed class UpdateChecker
@@ -33,7 +38,19 @@ public sealed class UpdateChecker
         if (string.IsNullOrWhiteSpace(tag)) return null;
         if (release?["draft"]?.GetValue<bool>() == true || release?["prerelease"]?.GetValue<bool>() == true) return null;
         if (SemVer.Parse(tag).CompareTo(SemVer.Parse(currentVersion)) <= 0) return null;
+        string? Asset(string name)
+        {
+            if (release?["assets"] is not JsonArray assets) return null;
+            foreach (var a in assets)
+            {
+                if (!string.Equals(a?["name"]?.GetValue<string>(), name, StringComparison.OrdinalIgnoreCase)) continue;
+                var url = a?["browser_download_url"]?.GetValue<string>();
+                return SelfUpdater.IsTrustedDownloadUrl(url) ? url : null;
+            }
+            return null;
+        }
+
         return new UpdateInfo(SemVer.Parse(tag).ToString(), release?["html_url"]?.GetValue<string>() ?? "",
-            release?["body"]?.GetValue<string>() ?? "");
+            release?["body"]?.GetValue<string>() ?? "", Asset(SelfUpdater.ExeName), Asset(SelfUpdater.ChecksumsName));
     }
 }

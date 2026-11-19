@@ -17,7 +17,7 @@
     <Company>theavgjim</Company>
     <Description>Phantom Client launcher for Minecraft: Java Edition</Description>
     <Copyright>MIT License</Copyright>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
 
     <!-- Single self-contained PhantomClient.exe (no .NET install needed). -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

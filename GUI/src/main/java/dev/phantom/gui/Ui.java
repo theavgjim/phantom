@@ -150,8 +150,7 @@ public final class Ui {
     }
 
     public void snapAnim(String key, double value) {
-        Animation a = anims.get(key);
-        if (a != null) a.snap(value);
+        anims.computeIfAbsent(key, k -> new Animation(value, 10)).snap(value);
     }
 
     public int c(int color) {

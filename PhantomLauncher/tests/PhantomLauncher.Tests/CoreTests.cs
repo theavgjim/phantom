@@ -215,3 +215,91 @@ public class LogTailerTests
         Assert.Equal("new session", lines[^1]);
     }
 }
+
+public class SelfUpdateTests
+{
+    private sealed class FakeHandler(Dictionary<string, byte[]> files) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            Task.FromResult(files.TryGetValue(request.RequestUri!.ToString(), out var body)
+                ? new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent(body) }
+                : new HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
+    }
+
+    private const string ExeUrl = "https://github.com/theavgjim/phantom/releases/download/v1.1.0/PhantomClient.exe";
+    private const string SumsUrl = "https://github.com/theavgjim/phantom/releases/download/v1.1.0/SHA256SUMS.txt";
+
+    private static string Hash(byte[] b) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(b)).ToLowerInvariant();
+
+    [Fact]
+    public void ReleaseAssetsAreParsedAndUrlsRestrictedToGitHub()
+    {
+        var json = JsonNode.Parse($$"""
+            {"tag_name":"v1.1.0","html_url":"https://github.com/x","assets":[
+              {"name":"PhantomClient.exe","browser_download_url":"{{ExeUrl}}"},
+              {"name":"SHA256SUMS.txt","browser_download_url":"{{SumsUrl}}"}]}
+            """);
+        var info = UpdateChecker.Evaluate(json, "1.0.0")!;
+        Assert.True(info.CanSelfUpdate);
+        Assert.Equal(ExeUrl, info.ExeUrl);
+
+        var evil = JsonNode.Parse("""{"tag_name":"v1.1.0","assets":[{"name":"PhantomClient.exe","browser_download_url":"https://evil.example/PhantomClient.exe"},{"name":"SHA256SUMS.txt","browser_download_url":"http://github.com/s"}]}""");
+        Assert.False(UpdateChecker.Evaluate(evil, "1.0.0")!.CanSelfUpdate);
+    }
+
+    [Fact]
+    public void ParsesSha256SumsFormats()
+    {
+        var h = new string('a', 64);
+        Assert.Equal(h, SelfUpdater.ExpectedHash($"{new string('b', 64)}  phantom-client-1.1.0.jar\n{h}  PhantomClient.exe\n", "PhantomClient.exe"));
+        Assert.Equal(h, SelfUpdater.ExpectedHash($"{h} *PhantomClient.exe", "PhantomClient.exe"));
+        Assert.Null(SelfUpdater.ExpectedHash("short  PhantomClient.exe", "PhantomClient.exe"));
+    }
+
+    [Fact]
+    public async Task DownloadsVerifiesAndSwapsInPlace()
+    {
+        using var t = new TempDir();
+        var exe = t["PhantomClient.exe"];
+        File.WriteAllText(exe, "v1.0.0");
+        var newBytes = System.Text.Encoding.UTF8.GetBytes("v1.1.0 binary");
+        var http = new HttpClient(new FakeHandler(new()
+        {
+            [ExeUrl] = newBytes,
+            [SumsUrl] = System.Text.Encoding.UTF8.GetBytes($"{Hash(newBytes)}  PhantomClient.exe\n")
+        }));
+        var info = new UpdateInfo("1.1.0", "", "", ExeUrl, SumsUrl);
+        var progress = new List<double>();
+        var pending = await new SelfUpdater(http).DownloadAsync(info, exe, new SyncProgress(progress), CancellationToken.None);
+
+        SelfUpdater.Apply(exe, pending);
+        Assert.Equal("v1.1.0 binary", File.ReadAllText(exe));
+        Assert.Equal("v1.0.0", File.ReadAllText(SelfUpdater.OldPath(exe)));
+        Assert.Equal(1.0, progress[^1]);
+
+        SelfUpdater.Cleanup(exe);
+        Assert.False(File.Exists(SelfUpdater.OldPath(exe)));
+    }
+
+    [Fact]
+    public async Task RejectsTamperedDownload()
+    {
+        using var t = new TempDir();
+        var exe = t["PhantomClient.exe"];
+        File.WriteAllText(exe, "v1.0.0");
+        var http = new HttpClient(new FakeHandler(new()
+        {
+            [ExeUrl] = System.Text.Encoding.UTF8.GetBytes("tampered"),
+            [SumsUrl] = System.Text.Encoding.UTF8.GetBytes($"{new string('0', 64)}  PhantomClient.exe\n")
+        }));
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            new SelfUpdater(http).DownloadAsync(new UpdateInfo("1.1.0", "", "", ExeUrl, SumsUrl), exe, null, CancellationToken.None));
+        Assert.Equal("v1.0.0", File.ReadAllText(exe));
+        Assert.Empty(Directory.GetFiles(t.Path).Where(f => f != exe));
+    }
+
+    private sealed class SyncProgress(List<double> sink) : IProgress<double>
+    {
+        public void Report(double value) => sink.Add(value);
+    }
+}

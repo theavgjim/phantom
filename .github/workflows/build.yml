@@ -6,6 +6,12 @@ on:
     tags: ["v*"]
   pull_request:
 
+# Releases: push a tag like v1.2.0. The tag becomes the version of both the mod and
+# PhantomClient.exe, and the release gets PhantomClient.exe + SHA256SUMS.txt, which the
+# launcher's built-in updater downloads and verifies.
+env:
+  VERSION_ARG: ""
+
 jobs:
   mod:
     name: Fabric mod (Java 21)
@@ -15,12 +21,15 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "21" }
       - uses: gradle/actions/setup-gradle@v4
+      - name: Version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: echo "VERSION_ARG=-Pclient_version=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
       - name: Build and unit-test
-        run: ./gradlew build
+        run: ./gradlew $VERSION_ARG build
       - name: In-game self-test (xvfb, software GL)
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri
-          xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew :MinecraftIntegration:runSelftest
+          xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew $VERSION_ARG :MinecraftIntegration:runSelftest
           python3 -c "import json,sys; r=json.load(open('MinecraftIntegration/run-selftest/phantom-selftest.json')); print(json.dumps(r, indent=2)); sys.exit(1 if r['failed'] else 0)"
       - uses: actions/upload-artifact@v4
         with:
@@ -48,7 +57,12 @@ jobs:
           New-Item -ItemType Directory -Force PhantomLauncher/src/PhantomLauncher/Payload | Out-Null
           Copy-Item (Get-ChildItem jar/*.jar | Select-Object -First 1).FullName PhantomLauncher/src/PhantomLauncher/Payload/phantom-client.jar
       - run: dotnet test PhantomLauncher/tests/PhantomLauncher.Tests -c Release
-      - run: dotnet publish PhantomLauncher/src/PhantomLauncher -c Release -o dist
+      - name: Publish (version from tag on releases)
+        shell: pwsh
+        run: |
+          $ver = if ($env:GITHUB_REF -like 'refs/tags/v*') { $env:GITHUB_REF_NAME.Substring(1) } else { $null }
+          if ($ver) { dotnet publish PhantomLauncher/src/PhantomLauncher -c Release -o dist -p:Version=$ver }
+          else { dotnet publish PhantomLauncher/src/PhantomLauncher -c Release -o dist }
       - uses: actions/upload-artifact@v4
         with:
           name: PhantomClient-exe
@@ -65,6 +79,7 @@ jobs:
       - run: cd out && sha256sum PhantomClient.exe phantom-client-*.jar > SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
+          generate_release_notes: true
           files: |
             out/PhantomClient.exe
             out/phantom-client-*.jar

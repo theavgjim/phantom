@@ -41,6 +41,9 @@ public final class ClickGuiScreen extends Screen {
     private boolean closing;
     private float scroll, scrollTarget, contentHeight;
     private long lastFrame = System.nanoTime();
+    private String contentKey = "";
+    /** Vertical offset of the content while it transitions in. */
+    private float contentShift;
 
     // layout (scaled GUI px), recomputed every frame
     private float wx, wy, ww, wh, cx, cy, cw, ch;
@@ -116,6 +119,18 @@ public final class ClickGuiScreen extends Screen {
         cy = wy + 36;
         ch = wh - 36 - 20;
 
+        // Crossfade + slide whenever the visible content changes (category, section or search).
+        String key = section + ":" + (search.text.isBlank() ? category.name() : "search");
+        if (!key.equals(contentKey)) {
+            contentKey = key;
+            ui.snapAnim("content", 0);
+        }
+        float content = ui.anim("content", 1, settings.animationSpeed.getDouble() * 0.9);
+        float eased = 1 - (1 - content) * (1 - content) * (1 - content);
+        float baseAlpha = ui.alpha;
+        ui.alpha = baseAlpha * eased;
+        contentShift = (1 - eased) * 10;
+
         switch (section) {
             case MODULES -> drawModules(ctx, t);
             case THEMES -> drawScrollable(ctx, t, "Themes", "Appearance and colours",
@@ -123,6 +138,7 @@ public final class ClickGuiScreen extends Screen {
             case PROFILES -> drawScrollable(ctx, t, "Profiles", "Profile: " + client.core().config().activeProfile(),
                     (y) -> profilesPanel.render(ui, ctx, t, cx, y, cw));
         }
+        ui.alpha = baseAlpha;
 
         String hint = section == Section.MODULES
                 ? "LMB expand  ·  RMB toggle  ·  MMB bind  ·  RMB slider = reset"
@@ -233,7 +249,7 @@ public final class ClickGuiScreen extends Screen {
 
         updateScroll();
         ui.pushClip(ctx, cx - 4, cy, cw + 8, ch);
-        float y = cy - scroll;
+        float y = cy - scroll + contentShift;
         float start = y;
         for (Module m : list) {
             y += drawCard(ctx, t, m, cx, y, cw) + 5;
@@ -347,7 +363,7 @@ public final class ClickGuiScreen extends Screen {
         Render2D.text(ctx, subtitle, cx, wy + 24, ui.c(t.textDim()), false, 0.75f);
         updateScroll();
         ui.pushClip(ctx, cx - 4, cy, cw + 8, ch);
-        contentHeight = body.draw(cy - scroll);
+        contentHeight = body.draw(cy - scroll + contentShift);
         ui.popClip(ctx);
         drawScrollbar(ctx, t);
     }

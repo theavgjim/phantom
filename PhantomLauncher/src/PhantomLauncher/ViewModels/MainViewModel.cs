@@ -1,3 +1,4 @@
+using System.IO;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Net.Http;
@@ -32,7 +33,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public AppSettings Settings { get; }
     public CompatibilityTable Compat { get; }
-    public string ClientVersion => Compat.ClientVersion;
+    /// <summary>The exe's own version (set from the git tag by the release build).</summary>
+    public string ClientVersion { get; } = ReadVersion();
+
+    private static string ReadVersion()
+    {
+        var v = System.Reflection.Assembly.GetExecutingAssembly()
+            .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "0.0.0";
+        var plus = v.IndexOf('+');
+        return plus >= 0 ? v[..plus] : v;
+    }
     public string Title => $"Phantom Client {ClientVersion}";
 
     public MainViewModel()
@@ -61,6 +72,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ClearConsoleCommand = new RelayCommand(() => ConsoleLines.Clear());
         CopyConsoleCommand = new RelayCommand(CopyConsole);
         CheckUpdatesCommand = new RelayCommand(async () => await CheckUpdatesAsync(true));
+        InstallUpdateCommand = new RelayCommand(async () => await InstallUpdateAsync(), () => !IsUpdating && _update is not null);
 
         SetActiveProfileCommand = new RelayCommand(p => SelectProfile(p as string));
         DuplicateProfileCommand = new RelayCommand(p => ProfileAction(() =>
@@ -100,6 +112,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public async Task InitializeAsync()
     {
         Log.Info($"Phantom Client launcher {ClientVersion} on {Environment.OSVersion}");
+        if (App.UpdatedFrom is { } from)
+        {
+            Status = $"Updated from {from} to {ClientVersion}";
+            Log.Info(Status);
+        }
         await DetectAsync();
         _poll.Start();
         if (Settings.CheckUpdates) _ = CheckUpdatesAsync(false);
@@ -469,18 +486,36 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // ------------------------------------------------------------------ updates
 
+    private UpdateInfo? _update;
+    private string? _verifiedUpdate;
+
     private string? _updateText;
     public string? UpdateText { get => _updateText; set { Set(ref _updateText, value); Raise(nameof(UpdateAvailable)); } }
     public bool UpdateAvailable => UpdateText is not null;
+
     private string? _updateUrl;
     public string? UpdatePageUrl { get => _updateUrl; set => Set(ref _updateUrl, value); }
+
+    private bool _isUpdating;
+    public bool IsUpdating { get => _isUpdating; set { Set(ref _isUpdating, value); Raise(nameof(UpdateButtonText)); } }
+
+    private double _updateProgress;
+    public double UpdateProgress { get => _updateProgress; set => Set(ref _updateProgress, value); }
+
+    public bool CanSelfUpdate => _update?.CanSelfUpdate == true;
+    public string UpdateButtonText => IsUpdating ? "Downloading..." : _verifiedUpdate is not null ? "Restart to update" : "Update & restart";
+
+    public bool AutoUpdate { get => Settings.AutoUpdate; set { Settings.AutoUpdate = value; SaveSettings(); Raise(); } }
+
+    private static string? CurrentExe =>
+        Environment.ProcessPath is { } p && p.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? p : null;
 
     private async Task CheckUpdatesAsync(bool manual)
     {
         var url = UpdateUrl;
         if (!UpdateChecker.IsConfigured(url))
         {
-            if (manual) Status = "Update URL is not configured (Settings > Updates)";
+            if (manual) Status = "Update URL is not configured (Settings > Launcher)";
             Log.Info("Update check skipped: no release URL configured");
             return;
         }
@@ -493,14 +528,86 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 Log.Info("No update available");
                 return;
             }
-            UpdateText = $"Phantom Client {info.Version} is available";
+            _update = info;
             UpdatePageUrl = info.Url;
+            UpdateText = $"Phantom Client {info.Version} is available";
+            Raise(nameof(CanSelfUpdate));
+            Raise(nameof(UpdateButtonText));
             Log.Info(UpdateText);
+            if (Settings.AutoUpdate && info.CanSelfUpdate && CurrentExe is not null) await DownloadUpdateAsync();
         }
         catch (Exception e)
         {
             Log.Warn($"Update check failed: {e.Message}");
             if (manual) Status = "Update check failed: " + e.Message;
+        }
+    }
+
+    private async Task<bool> DownloadUpdateAsync()
+    {
+        if (_verifiedUpdate is not null) return true;
+        if (_update is null || CurrentExe is not { } exe) return false;
+        IsUpdating = true;
+        try
+        {
+            var progress = new Progress<double>(p => UpdateProgress = p * 100);
+            _verifiedUpdate = await new SelfUpdater(_http).DownloadAsync(_update, exe, progress, CancellationToken.None);
+            UpdateText = $"Phantom Client {_update.Version} is ready - it installs when you restart or close the launcher";
+            return true;
+        }
+        catch (Exception e)
+        {
+            Log.Error("Update download failed", e);
+            UpdateText = $"Phantom Client {_update.Version} is available (automatic update failed: {e.Message})";
+            return false;
+        }
+        finally
+        {
+            IsUpdating = false;
+        }
+    }
+
+    private async Task InstallUpdateAsync()
+    {
+        if (_update is null) return;
+        if (!_update.CanSelfUpdate || CurrentExe is null)
+        {
+            OpenUrl(_update.Url);
+            return;
+        }
+        if (IsBusy)
+        {
+            Status = "Wait for the launch to finish before updating";
+            return;
+        }
+        if (!await DownloadUpdateAsync() || _verifiedUpdate is null) return;
+        try
+        {
+            var exe = CurrentExe!;
+            SelfUpdater.Apply(exe, _verifiedUpdate);
+            _verifiedUpdate = null;
+            Process.Start(new ProcessStartInfo(exe, $"--updated {ClientVersion}") { UseShellExecute = false });
+            Application.Current.Shutdown();
+        }
+        catch (Exception e)
+        {
+            Log.Error("Could not apply the update", e);
+            MessageBox.Show("The update could not be installed:\n\n" + e.Message, "Phantom Client", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>A verified download that was not applied yet is installed when the launcher closes.</summary>
+    private void ApplyPendingUpdateOnExit()
+    {
+        if (_verifiedUpdate is null || CurrentExe is not { } exe) return;
+        try
+        {
+            SelfUpdater.Apply(exe, _verifiedUpdate);
+            Log.Info($"Update {_update?.Version} installed on exit");
+        }
+        catch (Exception e)
+        {
+            Log.Error("Could not apply the update on exit", e);
         }
     }
 
@@ -519,6 +626,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public System.Windows.Input.ICommand ClearConsoleCommand { get; }
     public System.Windows.Input.ICommand CopyConsoleCommand { get; }
     public System.Windows.Input.ICommand CheckUpdatesCommand { get; }
+    public System.Windows.Input.ICommand InstallUpdateCommand { get; }
     public System.Windows.Input.ICommand SetActiveProfileCommand { get; }
     public System.Windows.Input.ICommand DuplicateProfileCommand { get; }
     public System.Windows.Input.ICommand DeleteProfileCommand { get; }
@@ -555,6 +663,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        ApplyPendingUpdateOnExit();
         _poll.Stop();
         _tailer?.Dispose();
         Log.EntryAdded -= OnLog;

@@ -17,6 +17,7 @@ public sealed class AppSettings
     [JsonPropertyName("selectedProfile")] public string SelectedProfile { get; set; } = "default";
     [JsonPropertyName("closeOnLaunch")] public bool CloseOnLaunch { get; set; }
     [JsonPropertyName("checkUpdates")] public bool CheckUpdates { get; set; } = true;
+    [JsonPropertyName("autoUpdate")] public bool AutoUpdate { get; set; } = true;
     [JsonPropertyName("updateUrl")] public string? UpdateUrl { get; set; }
     [JsonPropertyName("consoleFilter")] public string ConsoleFilter { get; set; } = "All";
 

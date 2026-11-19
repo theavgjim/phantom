@@ -30,6 +30,24 @@
 Phantom uses its own game folder (`phantom-instance`), so your normal worlds, mods and resource packs are left alone.
 You can change that folder in **Settings**.
 
+## Updates
+
+You never need to reinstall. On startup the launcher checks the latest GitHub release of
+`theavgjim/phantom`. When a newer version exists:
+
+- **Automatic (default):** it downloads the new `PhantomClient.exe` in the background, verifies it
+  against the release's `SHA256SUMS.txt`, and installs it when you close the launcher. You can also click
+  **Restart to update** in the sidebar to switch right away.
+- **Manual:** turn off *Download updates automatically* in Settings → Launcher. The sidebar then shows
+  **Update & restart** instead.
+
+The exe replaces itself in place. The previous version is kept as `PhantomClient.exe.old` until the next
+start, and a download whose checksum doesn't match is thrown away. The mod is embedded in the exe, so the
+next **LAUNCH** installs the matching mod automatically. Your profiles and settings are untouched.
+
+Self-update needs write access to the folder containing `PhantomClient.exe`, so keep it somewhere like
+`Documents` or `Desktop` rather than `Program Files`.
+
 ## Using the mod without the launcher
 
 `phantom-client-1.0.0.jar` is a normal Fabric mod. It nests the Fabric API modules it needs, so drop it into the

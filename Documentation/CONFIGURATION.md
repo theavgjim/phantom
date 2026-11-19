@@ -58,7 +58,7 @@ config/phantom/
 ## Launcher settings
 
 `%LOCALAPPDATA%\PhantomClient\settings.json`: Minecraft directory, instance directory, Java path,
-memory (MB), extra JVM args, Minecraft Launcher path, selected profile, close-on-launch, update checks
+memory (MB), extra JVM args, Minecraft Launcher path, selected profile, close-on-launch, update checks, automatic updates
 and release-feed URL, console filter.
 
 The release feed defaults to `https://api.github.com/repos/theavgjim/phantom/releases/latest`; change it in Settings → Launcher, or in
